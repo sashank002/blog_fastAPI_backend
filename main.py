@@ -22,7 +22,7 @@ app.mount("/media/",StaticFiles(directory="./media"),name="media")
 
 
 @app.post(
-    "api/users",
+    "/api/users",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -56,7 +56,7 @@ def create_user(user: UserCreate,db:Annotated[Session,Depends(get_db)]):
     return new_user
 
 
-@app.get("/api/users/{user_id}",response_model=list[UserResponse])
+@app.get("/api/users/{user_id}",response_model=UserResponse)
 def get_user(user_id:int,db:Annotated[Session,Depends(get_db)]):
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
@@ -72,7 +72,7 @@ def get_user_posts(user_id:int,db:Annotated[Session,Depends(get_db)]):
     result = db.execute(select(models.Post).where(models.Post.id == user_id))
     user = result.scalars().first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Posts not found")
 
     result = db.execute(select(models.Post).where(models.Post.user_id == user_id))
     posts = result.scalars().all()
@@ -96,7 +96,7 @@ def get_post(post_id: int,db:Annotated[Session,Depends(get_db)]):
 
 @app.post("/api/posts",response_model=PostResponse,status_code=status.HTTP_201_CREATED)
 def create_post(post: PostCreate,db:Annotated[Session,Depends(get_db)]):
-    result = db.execute(select(models.User).where(models.User.Id == post.user_id))
+    result = db.execute(select(models.User).where(models.User.id == post.user_id))
     existing_user = result.scalars().first()
     if not existing_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="User not found")
