@@ -11,6 +11,13 @@ SQLALCHEMY_DATABASE_URI = os.getenv(
     f"sqlite+aiosqlite:///{BASE_DIR / 'blog.db'}" 
      )
 
+# Hosts like Railway/Render give a plain "postgresql://" (or legacy "postgres://")
+# URL, which SQLAlchemy maps to the sync psycopg2 driver. We need the async driver.
+for prefix in ("postgres://", "postgresql://"):
+    if SQLALCHEMY_DATABASE_URI.startswith(prefix):
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(prefix, "postgresql+asyncpg://", 1)
+        break
+
 
 # check_same_thread is SQLite-only — PostgreSQL doesn't support it
 connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URI else {}
