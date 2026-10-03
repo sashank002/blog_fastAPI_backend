@@ -1,0 +1,118 @@
+# ============================================================
+# What is this file?
+# ============================================================
+# GitHub Actions reads every .yml file inside .github/workflows/
+# and runs it on GitHub's servers when the trigger (below) happens.
+# Results show up in the "Actions" tab of the repo, and as a
+# ✅ / ❌ next to each commit and pull request.
+
+# Name shown in the Actions tab
+name: CI
+
+# ============================================================
+# Triggers: WHEN should this workflow run?
+# ============================================================
+on:
+  # Every push to main (e.g. after merging, or pushing directly)
+  push:
+    branches: [main]
+  # Every pull request that targets main — catch bugs BEFORE merging
+  pull_request:
+    branches: [main]
+  # Adds a "Run workflow" button in the Actions tab for manual runs
+  workflow_dispatch:
+
+# ============================================================
+# Permissions: what can this workflow do to the repo?
+# ============================================================
+# By default the workflow's token can do a lot. We only need to
+# READ the code, so lock it down (principle of least privilege).
+permissions:
+  contents: read
+
+# ============================================================
+# Concurrency: cancel outdated runs
+# ============================================================
+# If you push 3 commits quickly, only the newest one matters.
+# This cancels older still-running runs on the same branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ============================================================
+# Jobs: the actual work
+# ============================================================
+# A workflow has one or more jobs. Each job runs on a fresh
+# virtual machine (a "runner") that is thrown away afterwards.
+jobs:
+  docker-smoke-test:
+    # Fresh Ubuntu VM provided by GitHub — Docker comes pre-installed
+    runs-on: ubuntu-latest
+    # Safety net: kill the job if something hangs
+    timeout-minutes: 10
+
+    # Steps run top to bottom. If any step fails, the job stops
+    # and is marked ❌.
+    steps:
+      # --------------------------------------------------------
+      # Step 1: Download the repo's code onto the runner
+      # --------------------------------------------------------
+      # The VM starts empty. "uses:" runs a pre-built action
+      # published by someone else (here: GitHub itself).
+      # @v5 = pin to major version 5 so updates can't break us.
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      # --------------------------------------------------------
+      # Step 2: Build the image — same command you run locally
+      # --------------------------------------------------------
+      # "run:" executes shell commands on the runner.
+      # Fails if the Dockerfile is broken or pip install fails.
+      - name: Build Docker image
+        run: docker build -t blog-api:ci .
+
+      # --------------------------------------------------------
+      # Step 3: Start the container in the background
+      # --------------------------------------------------------
+      # -d               = detached (background), so the next step can run
+      # -e SECRET_KEY=…  = config.py REQUIRES this, app won't start without it.
+      #                    A dummy value is fine — it's a throwaway test.
+      # No DATABASE_URL  = database.py falls back to SQLite inside the container
+      - name: Start container
+        run: |
+          docker run -d --name blog-api -p 8000:8000 \
+            -e SECRET_KEY=ci-dummy-secret-not-for-production \
+            blog-api:ci
+
+      # --------------------------------------------------------
+      # Step 4: Smoke test — does the app actually START?
+      # --------------------------------------------------------
+      # A successful build doesn't mean the app works: the
+      # "No module named setuptools" bug built fine and only
+      # crashed at startup. So we poll /docs for up to 30s.
+      #
+      # curl -f = exit non-zero on HTTP errors (4xx/5xx)
+      # curl -s = silent (no progress bar)
+      # exit 0 / exit 1 = tell GitHub the step passed / failed
+      - name: Wait for app and check /docs
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8000/docs > /dev/null; then
+              echo "✅ App is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ App did not respond within 30s"
+          exit 1
+
+      # --------------------------------------------------------
+      # Step 5: Print container logs (always)
+      # --------------------------------------------------------
+      # if: always() = run this step even if earlier steps failed.
+      # Without it, a failed smoke test would skip this, and you'd
+      # have no idea WHY the app crashed. This is where you'd see
+      # the Python traceback.
+      - name: Show container logs
+        if: always()
+        run: docker logs blog-api || true

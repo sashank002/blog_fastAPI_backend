@@ -5,8 +5,6 @@ import jwt
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
-from rich import status
-from setuptools import depends
 
 from config import settings
 from typing import Annotated

@@ -1,0 +1,31 @@
+# Virtual environment — Docker installs its own deps via pip
+.venv/
+
+# Git history — not needed in production
+.git/
+.gitignore
+
+# IDE config files
+.idea/
+.vscode/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# SQLite database — production uses PostgreSQL
+blog.db
+
+# Environment file — secrets are set via env vars on the server
+.env
+
+# Docker files — don't need to copy themselves
+Dockerfile
+.dockerignore
+
+# OS files
+.DS_Store
+
+# Seed script — dev only
+seed_data.py
