@@ -1,0 +1,19 @@
+# Web framework
+fastapi[standard]==0.128.8
+
+# Database
+SQLAlchemy==2.0.51
+aiosqlite==0.22.1      # SQLite async driver (local dev)
+asyncpg==0.31.0        # PostgreSQL async driver (production)
+
+# Auth
+PyJWT==2.8.0           # JWT token creation and verification
+pwdlib[argon2]==0.2.0   # Password hashing (argon2)
+
+# Validation & config
+pydantic-settings==2.11.0  # Reads .env file into settings
+email-validator==2.3.0     # Validates email fields in schemas
+
+# Server
+uvicorn==0.39.0
+
